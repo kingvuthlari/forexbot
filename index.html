@@ -1,0 +1,347 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080D18">
+<title>ForexBot</title>
+
+<style>
+* { box-sizing:border-box; }
+
+body {
+  margin:0;
+  padding:18px;
+  background:#080D18;
+  color:#F8FAFC;
+  font-family:Arial,sans-serif;
+}
+
+header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+
+.brand { font-size:25px; font-weight:bold; }
+.blue { color:#3B82F6; }
+
+.tag {
+  background:#123B2B;
+  color:#4ADE80;
+  padding:7px 11px;
+  border-radius:20px;
+  font-size:11px;
+}
+
+.card {
+  background:#111C2E;
+  border:1px solid #24334B;
+  padding:17px;
+  border-radius:15px;
+  margin-bottom:14px;
+}
+
+.small { color:#94A3B8; font-size:12px; }
+
+h3 { margin-top:0; }
+
+.signal {
+  font-size:34px;
+  font-weight:bold;
+  margin:12px 0;
+}
+
+input,textarea,button {
+  width:100%;
+  padding:13px;
+  border-radius:9px;
+  margin:6px 0;
+  font-size:14px;
+}
+
+input,textarea {
+  background:#080D18;
+  color:white;
+  border:1px solid #34445E;
+}
+
+button {
+  background:#2563EB;
+  color:white;
+  border:0;
+  font-weight:bold;
+}
+
+button.secondary {
+  background:#26364F;
+}
+
+.row {
+  display:flex;
+  justify-content:space-between;
+  padding:9px 0;
+  border-bottom:1px solid #24334B;
+  font-size:14px;
+}
+
+.green { color:#4ADE80; }
+.red { color:#F87171; }
+.yellow { color:#FBBF24; }
+
+.history {
+  font-size:13px;
+  padding:9px 0;
+  border-bottom:1px solid #24334B;
+}
+
+footer {
+  text-align:center;
+  color:#64748B;
+  font-size:11px;
+  padding:15px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div>
+    <div class="brand">Forex<span class="blue">Bot</span></div>
+    <div class="small">SMART SIGNAL DASHBOARD</div>
+  </div>
+  <span class="tag">DEMO MODE</span>
+</header>
+
+<div class="card">
+  <div class="small">SELECTED MARKET</div>
+  <h2>EUR/USD</h2>
+  <div class="small">Fictional demonstration data</div>
+</div>
+
+<div class="card">
+  <div class="small">CURRENT SIGNAL</div>
+  <div id="signal" class="signal yellow">WAIT</div>
+  <div id="reason" class="small">
+    Waiting for market analysis.
+  </div>
+  <button onclick="analyse()">ANALYSE MARKET</button>
+  <button class="secondary" onclick="loadDemo()">
+    GENERATE DEMO PRICES
+  </button>
+</div>
+
+<div class="card">
+  <h3>EMA Indicators</h3>
+  <div class="row">
+    <span>Fast EMA 20</span>
+    <b id="fast">--</b>
+  </div>
+  <div class="row">
+    <span>Slow EMA 50</span>
+    <b id="slow">--</b>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Notification settings</h3>
+  <div class="small" id="permission">
+    Notifications not enabled.
+  </div>
+  <button onclick="enableNotifications()">
+    ENABLE NOTIFICATIONS
+  </button>
+  <div class="small">
+    Alerts are sent when the signal changes.
+    Android and Chrome must allow notifications.
+  </div>
+</div>
+
+<div class="card">
+  <h3>Signal history</h3>
+  <div id="history" class="small">
+    No signals recorded yet.
+  </div>
+</div>
+
+<div class="card">
+  <h3>Demo closing prices</h3>
+  <textarea id="prices" rows="4"
+    placeholder="Enter comma-separated prices, oldest first"></textarea>
+  <button class="secondary" onclick="analyse()">
+    USE ENTERED PRICES
+  </button>
+  <div class="small">
+    Enter at least 51 positive closing prices.
+    These are examples, not live market prices.
+  </div>
+</div>
+
+<footer>
+  FOREXBOT V3.0 · EDUCATIONAL DEMO ONLY
+</footer>
+
+<script>
+let lastSignal = null;
+let historyItems = [];
+let lastAnalysedData = "";
+
+function calculateEMA(values,period) {
+  let result = [];
+  let sum = 0;
+  let multiplier = 2 / (period + 1);
+
+  for(let i=0;i<values.length;i++) {
+    if(i<period-1) {
+      sum += values[i];
+      result.push(null);
+    } else if(i===period-1) {
+      sum += values[i];
+      result.push(sum/period);
+    } else {
+      let previous = result[i-1];
+      result.push(
+        (values[i]-previous)*multiplier+previous
+      );
+    }
+  }
+  return result;
+}
+
+function loadDemo() {
+  let prices=[];
+
+  for(let i=0;i<80;i++) {
+    let price=1.1000+i*0.00003+
+      Math.sin(i/4)*0.0004;
+    prices.push(price.toFixed(5));
+  }
+
+  document.getElementById("prices").value =
+    prices.join(", ");
+
+  lastAnalysedData = "";
+  analyse();
+}
+
+function notifyUser(signal) {
+  if(!("Notification" in window)) return;
+
+  if(Notification.permission==="granted") {
+    try {
+      new Notification("ForexBot: "+signal,{
+        body: signal==="BUY"
+          ? "A demo BUY crossover was detected."
+          : signal==="SELL"
+          ? "A demo SELL crossover was detected."
+          : "No crossover detected. Signal is WAIT."
+      });
+    } catch(error) {
+      console.log("Notification unavailable",error);
+    }
+  }
+}
+
+async function enableNotifications() {
+  if(!("Notification" in window)) {
+    document.getElementById("permission").innerText =
+      "This browser does not support notifications.";
+    return;
+  }
+
+  try {
+    let permission=await Notification.requestPermission();
+    document.getElementById("permission").innerText =
+      "Notification permission: "+permission;
+
+    if(permission==="granted") {
+      new Notification("ForexBot is ready",{
+        body:"Demo notification test successful."
+      });
+    }
+  } catch(error) {
+    document.getElementById("permission").innerText =
+      "Notifications unavailable in this browser context.";
+  }
+}
+
+function analyse() {
+  let raw=document.getElementById("prices").value;
+
+  let values=raw.split(",").map(x=>Number(x.trim()));
+
+  if(values.length<51 ||
+     values.some(x=>!Number.isFinite(x)||x<=0)) {
+    alert("Enter at least 51 valid positive prices.");
+    return;
+  }
+
+  let fast=calculateEMA(values,20);
+  let slow=calculateEMA(values,50);
+
+  let i=values.length-1;
+  let old=i-1;
+
+  let signal="WAIT";
+  let reason="No crossover detected.";
+
+  if(fast[old]<=slow[old] && fast[i]>slow[i]) {
+    signal="BUY";
+    reason="EMA 20 crossed above EMA 50.";
+  } else if(fast[old]>=slow[old] && fast[i]<slow[i]) {
+    signal="SELL";
+    reason="EMA 20 crossed below EMA 50.";
+  }
+
+  document.getElementById("fast").innerText =
+    fast[i].toFixed(5);
+  document.getElementById("slow").innerText =
+    slow[i].toFixed(5);
+
+  let display=document.getElementById("signal");
+  display.innerText=signal;
+  display.className="signal "+
+    (signal==="BUY"?"green":
+     signal==="SELL"?"red":"yellow");
+
+  document.getElementById("reason").innerText=reason;
+
+  // Avoid duplicate alerts for the same analysis.
+  let dataKey=raw;
+
+  if(dataKey!==lastAnalysedData) {
+    if(lastSignal!==signal) {
+      notifyUser(signal);
+      addHistory(signal,reason);
+      lastSignal=signal;
+    }
+    lastAnalysedData=dataKey;
+  }
+}
+
+function addHistory(signal,reason) {
+  let time=new Date().toLocaleTimeString();
+
+  historyItems.unshift({
+    signal:signal,
+    reason:reason,
+    time:time
+  });
+
+  historyItems=historyItems.slice(0,20);
+
+  document.getElementById("history").innerHTML =
+    historyItems.map(item=>
+      '<div class="history"><b>'+item.signal+
+      '</b> · '+item.time+
+      '<br><span class="small">'+item.reason+
+      '</span></div>'
+    ).join("");
+}
+
+</script>
+</body>
+</html>
