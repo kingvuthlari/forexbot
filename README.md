@@ -1,0 +1,2 @@
+# forexbot
+ForexBot_Project 
